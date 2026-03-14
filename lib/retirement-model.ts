@@ -14,6 +14,7 @@ export const ETF_PARTIAL_EXEMPTION = 0.3
 export const ETF_TAX_RATE = 0.26375
 export const ETF_VORABPAUSCHALE_BASIS_RATE = 0.032
 export const ETF_VORABPAUSCHALE_FACTOR = 0.7
+export const ETF_SPARER_PAUSCHBETRAG_PER_ADULT = 1000
 
 export type ContractCount = 1 | 2
 export type AdultCount = 1 | 2
@@ -46,6 +47,7 @@ export type YearSnapshot = {
   endingEtfBalance: number
   endingAvBalance: number
   vorabTax: number
+  sparerAllowanceUsed: number
   avSubsidy: number
   childSubsidy: number
 }
@@ -58,6 +60,7 @@ export type ScenarioResult = {
   totalEtfContributions: number
   totalAvContributions: number
   totalVorabTax: number
+  totalSparerAllowanceUsed: number
   totalAvSubsidy: number
   totalChildSubsidy: number
   totalStarterBonus: number
@@ -357,6 +360,7 @@ function simulateScenario(
   )
 
   let totalVorabTax = 0
+  let totalSparerAllowanceUsed = 0
   let totalEtfContributions = inputs.startingEtfBalance
   let totalAvContributions = 0
   let totalAvSubsidy = 0
@@ -394,15 +398,18 @@ function simulateScenario(
     etfBalance = etfGrowth.endingBalance
     totalEtfContributions += annualEtfContribution
 
-    const vorabTax = calculateVorabTax({
+    const vorabTaxResult = calculateVorabTax({
       openingBalance: openingEtfBalance,
       balanceBeforeTax: etfBalance,
       annualContribution: annualEtfContribution,
       weightedTaxBase: etfGrowth.weightedTaxBase,
+      adultCount: inputs.adultCount,
     })
+    const vorabTax = vorabTaxResult.tax
 
     etfBalance = Math.max(etfBalance - vorabTax, 0)
     totalVorabTax += vorabTax
+    totalSparerAllowanceUsed += vorabTaxResult.sparerAllowanceUsed
     finalYearVorabTax = vorabTax
 
     const eligibleChildren = getEligibleChildrenForYear(inputs.children, yearIndex)
@@ -471,6 +478,7 @@ function simulateScenario(
       endingEtfBalance: etfBalance,
       endingAvBalance: avBalance,
       vorabTax,
+      sparerAllowanceUsed: vorabTaxResult.sparerAllowanceUsed,
       avSubsidy: annualAvSubsidy,
       childSubsidy: annualChildSubsidy,
     })
@@ -490,6 +498,7 @@ function simulateScenario(
     totalEtfContributions,
     totalAvContributions,
     totalVorabTax,
+    totalSparerAllowanceUsed,
     totalAvSubsidy,
     totalChildSubsidy,
     totalStarterBonus,
@@ -525,11 +534,13 @@ function calculateVorabTax({
   balanceBeforeTax,
   annualContribution,
   weightedTaxBase,
+  adultCount,
 }: {
   openingBalance: number
   balanceBeforeTax: number
   annualContribution: number
   weightedTaxBase: number
+  adultCount: AdultCount
 }) {
   const annualGain = Math.max(
     balanceBeforeTax - openingBalance - annualContribution,
@@ -537,14 +548,27 @@ function calculateVorabTax({
   )
 
   if (annualGain <= 0) {
-    return 0
+    return {
+      tax: 0,
+      sparerAllowanceUsed: 0,
+    }
   }
 
   const maximumVorab = weightedTaxBase * ETF_VORABPAUSCHALE_FACTOR * ETF_VORABPAUSCHALE_BASIS_RATE
   const vorabpauschale = Math.min(annualGain, maximumVorab)
   const taxableAmount = vorabpauschale * (1 - ETF_PARTIAL_EXEMPTION)
+  const annualSparerAllowance =
+    adultCount * ETF_SPARER_PAUSCHBETRAG_PER_ADULT
+  const sparerAllowanceUsed = Math.min(taxableAmount, annualSparerAllowance)
+  const taxableAfterAllowance = Math.max(
+    taxableAmount - sparerAllowanceUsed,
+    0
+  )
 
-  return taxableAmount * ETF_TAX_RATE
+  return {
+    tax: taxableAfterAllowance * ETF_TAX_RATE,
+    sparerAllowanceUsed,
+  }
 }
 
 function calculateAvSubsidy({

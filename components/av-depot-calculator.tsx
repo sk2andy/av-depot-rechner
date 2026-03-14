@@ -39,6 +39,7 @@ import {
 import {
   CALCULATION_START_YEAR,
   ETF_PARTIAL_EXEMPTION,
+  ETF_SPARER_PAUSCHBETRAG_PER_ADULT,
   ETF_TAX_RATE,
   ETF_VORABPAUSCHALE_BASIS_RATE,
   RETIREMENT_AGE,
@@ -233,7 +234,7 @@ export function AvDepotCalculator() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(28,125,102,0.14),_transparent_35%),linear-gradient(180deg,_#f9f4e8_0%,_#fbfaf7_38%,_#f4efe1_100%)] px-4 py-6 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(24rem,0.82fr)]">
           <Card className="border border-white/70 bg-white/85 shadow-[0_18px_80px_rgba(39,70,57,0.08)] backdrop-blur">
             <CardHeader className="gap-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -267,7 +268,7 @@ export function AvDepotCalculator() {
                 .
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <QuickFact
                 icon={ShieldCheck}
                 title="AV-Vorabpauschale"
@@ -287,6 +288,15 @@ export function AvDepotCalculator() {
                 description="Aktuell kindergeldberechtigte Kinder im Modell."
               />
               <QuickFact
+                icon={BadgeEuro}
+                title="Sparer-Pauschbetrag p.a."
+                value={formatCurrency(
+                  normalizedInputs.adultCount *
+                    ETF_SPARER_PAUSCHBETRAG_PER_ADULT
+                )}
+                description="Im ETF-Modell automatisch je eingestelltem Partner angerechnet."
+              />
+              <QuickFact
                 icon={PiggyBank}
                 title="Haushaltshorizont"
                 value={`${result.householdYearsToRetirement} Jahre`}
@@ -295,7 +305,7 @@ export function AvDepotCalculator() {
             </CardContent>
           </Card>
 
-          <Card className="border border-primary/15 bg-[#173c35] text-white shadow-[0_24px_72px_rgba(12,34,30,0.26)]">
+          <Card className="border border-primary/15 bg-[#173c35] text-white shadow-[0_24px_72px_rgba(12,34,30,0.26)] xl:sticky xl:top-6">
             <CardHeader>
               <CardTitle className="text-2xl">Szenario auf einen Blick</CardTitle>
               <CardDescription className="text-white/72">
@@ -822,6 +832,13 @@ export function AvDepotCalculator() {
                         description="Direkte Zulage inklusive Kinderkomponente und ggf. Starterbonus."
                       />
                       <InsightCard
+                        title="Genutzter Sparer-Pauschbetrag"
+                        value={formatCurrency(
+                          splitScenario.totalSparerAllowanceUsed
+                        )}
+                        description="Kumuliert auf die ETF-Vorabpauschale im Split-Szenario angerechnet."
+                      />
+                      <InsightCard
                         title="Letzte Vorabpauschale"
                         value={formatCurrency(splitScenario.finalYearVorabTax)}
                         description="Naherungswert fur das letzte Sparjahr vor 67."
@@ -837,7 +854,9 @@ export function AvDepotCalculator() {
                           ETF_VORABPAUSCHALE_BASIS_RATE * 100
                         )}, Teilfreistellung ${formatPercent(
                           ETF_PARTIAL_EXEMPTION * 100
-                        )} fur Aktien-ETFs und Abgeltungsteuer inkl. Soli von ${formatPercent(
+                        )} fur Aktien-ETFs, Sparer-Pauschbetrag von ${formatCurrency(
+                          ETF_SPARER_PAUSCHBETRAG_PER_ADULT
+                        )} je eingestelltem Partner pro Jahr und Abgeltungsteuer inkl. Soli von ${formatPercent(
                           ETF_TAX_RATE * 100
                         )}.`}
                       />
